@@ -19,8 +19,8 @@
 * =================================================*/
 
 #include "OceanManager.h"
-#include "Classes/Engine/World.h"
-#include "Classes/Engine/Texture2D.h"
+#include <Engine/World.h>
+#include <Engine/Texture2D.h>
 
 
 AOceanManager::AOceanManager(const class FObjectInitializer& ObjectInitializer)
@@ -119,10 +119,14 @@ void AOceanManager::LoadLandscapeHeightmap(UTexture2D* Tex2D)
 // 	uint8* ArrayData = (uint8 *)HeightmapPixels.GetData();
 // 	FMemory::Memcpy(ArrayData, FormatedImageData, GPixelFormats[Tex2D->GetPixelFormat()].BlockBytes * HeightmapWidth * HeightmapHeight);
 
-	for (int i = 0; i < HeightmapWidth * HeightmapHeight; i++)
+	if (FormatedImageData)
 	{
-		HeightmapPixels.Add(FLinearColor(FormatedImageData[i]));
+		for (int i = 0; i < HeightmapWidth * HeightmapHeight; i++)
+		{
+			HeightmapPixels.Add(FLinearColor(FormatedImageData[i]));
+		}
 	}
+	
 	Tex2D->PlatformData->Mips[0].BulkData.Unlock();
 
 // 	UE_LOG(LogTemp, Warning, TEXT("num = %d"), HeightmapPixels.Num());
