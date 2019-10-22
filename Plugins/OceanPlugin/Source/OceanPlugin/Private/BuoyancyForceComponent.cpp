@@ -3,24 +3,31 @@
 * 
 * Created by: TK-Master
 * Project name: OceanProject
-* Unreal Engine version: 4.12.2
+* Unreal Engine version: 4.18.3
 * Created on: 2015/04/26
 *
-* Last Edited on: 2016/06/10
-* Last Edited by: DotCam
+* Last Edited on: 2018/03/15
+* Last Edited by: Felipe "Zoc" Silveira
 * 
 * -------------------------------------------------
 * For parts referencing UE4 code, the following copyright applies:
-* Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 *
 * Feel free to use this software in any commercial/free game.
 * Selling this as a plugin/item, in whole or part, is not allowed.
 * See "OceanProject\License.md" for full licensing details.
 * =================================================*/
 
-#include "OceanPluginPrivatePCH.h"
 #include "BuoyancyForceComponent.h"
-
+#include "Engine/World.h"
+#include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
+#include "EngineUtils.h"
+#include "GameFramework/PhysicsVolume.h"
+#include "PhysicsEngine/ConstraintInstance.h"
+ 	
 UBuoyancyForceComponent::UBuoyancyForceComponent(const class FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer) 
 {
@@ -45,16 +52,9 @@ UBuoyancyForceComponent::UBuoyancyForceComponent(const class FObjectInitializer&
 	WaveForceMultiplier = 2.0f;
 }
 
-/*void UBuoyancyForceComponent::PostLoad()
-{
-	Super::PostLoad();
-}*/
-
 void UBuoyancyForceComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
-
-	//UE_LOG(LogTemp, Warning, TEXT("We're initializing..."));
 
 	//Store the world ref.
 	World = GetWorld();
@@ -179,7 +179,7 @@ void UBuoyancyForceComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 				if (isUnderwater)
 				{
 					BI->SetLinearVelocity(-BI->GetUnrealWorldVelocity() * (FluidLinearDamping / 10), true);
-					BI->SetAngularVelocity(-BI->GetUnrealWorldAngularVelocity() * (FluidAngularDamping / 10), true);
+					BI->SetAngularVelocityInRadians(-BI->GetUnrealWorldAngularVelocityInRadians() * FMath::DegreesToRadians(FluidAngularDamping / 10), true);
 
 					//Clamp the velocity to MaxUnderwaterVelocity
 					if (ClampMaxVelocity && BI->GetUnrealWorldVelocity().Size() > MaxUnderwaterVelocity)
@@ -237,7 +237,7 @@ void UBuoyancyForceComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 			*/
 			float BuoyancyForceZ = BasePrimComp->GetMass() / PointDensity * FluidDensity * -Gravity / TotalPoints * DepthMultiplier;
 
-			//Experimental velocity damping using VelocityAtPoint.
+			//Experimental velocity damping using GetUnrealWorldVelocityAtPoint!
 			FVector DampingForce = -GetUnrealVelocityAtPoint(BasePrimComp, worldTestPoint) * VelocityDamper * BasePrimComp->GetMass() * DepthMultiplier;
 
 			//Experimental xy wave force
@@ -296,27 +296,23 @@ void UBuoyancyForceComponent::ApplyUprightConstraint(UPrimitiveComponent* BasePr
 		//Settings
 		FConstraintInstance ConstraintInstance;
 
-		ConstraintInstance.LinearXMotion = ELinearConstraintMotion::LCM_Free;
-		ConstraintInstance.LinearYMotion = ELinearConstraintMotion::LCM_Free;
-		ConstraintInstance.LinearZMotion = ELinearConstraintMotion::LCM_Free;
+		ConstraintInstance.SetLinearXMotion(ELinearConstraintMotion::LCM_Free);
+		ConstraintInstance.SetLinearYMotion(ELinearConstraintMotion::LCM_Free);
+		ConstraintInstance.SetLinearZMotion(ELinearConstraintMotion::LCM_Free);
 
 		//ConstraintInstance.LinearLimitSize = 0;
 
-		//ConstraintInstance.AngularSwing1Motion = EAngularConstraintMotion::ACM_Limited;
-		ConstraintInstance.AngularSwing2Motion = EAngularConstraintMotion::ACM_Limited;
-		ConstraintInstance.AngularTwistMotion = EAngularConstraintMotion::ACM_Limited;
+		//ConstraintInstance.SetAngularSwing1Motion(EAngularConstraintMotion::ACM_Limited);
+		ConstraintInstance.SetAngularSwing2Motion(EAngularConstraintMotion::ACM_Limited);
+		ConstraintInstance.SetAngularTwistMotion(EAngularConstraintMotion::ACM_Limited);
 
-		ConstraintInstance.bSwingLimitSoft = true;
-		ConstraintInstance.bTwistLimitSoft = true;
+		ConstraintInstance.SetOrientationDriveTwistAndSwing(true, true);
 
-		//ConstraintInstance.Swing1LimitAngle = 0;
-		ConstraintInstance.Swing2LimitAngle = 0;
-		ConstraintInstance.TwistLimitAngle = 0;
+		//ConstraintInstance.SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Locked, 0);
+		ConstraintInstance.SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Locked, 0);
+		ConstraintInstance.SetAngularTwistLimit(EAngularConstraintMotion::ACM_Locked, 0);
 
-		ConstraintInstance.SwingLimitStiffness = StayUprightStiffness;
-		ConstraintInstance.SwingLimitDamping = StayUprightDamping;
-		ConstraintInstance.TwistLimitStiffness = StayUprightStiffness;
-		ConstraintInstance.TwistLimitDamping = StayUprightDamping;
+		ConstraintInstance.SetAngularDriveParams(StayUprightStiffness, StayUprightDamping, 0);
 
 		ConstraintInstance.AngularRotationOffset = BasePrimComp->GetComponentRotation().GetInverse() + StayUprightDesiredRotation;
 

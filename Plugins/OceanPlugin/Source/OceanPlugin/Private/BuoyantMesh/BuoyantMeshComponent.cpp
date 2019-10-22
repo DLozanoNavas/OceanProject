@@ -3,31 +3,32 @@
 *
 * Created by: quantumv
 * Project name: OceanProject
-* Unreal Engine version: 4.9
+* Unreal Engine version: 4.18.3
 * Created on: 2015/09/21
 *
-* Last Edited on: 2015/11/18
-* Last Edited by: quantumv
+* Last Edited on: 2018/03/15
+* Last Edited by: Felipe "Zoc" Silveira
 *
 * -------------------------------------------------
 * For parts referencing UE4 code, the following copyright applies:
-* Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 *
 * Feel free to use this software in any commercial/free game.
 * Selling this as a plugin/item, in whole or part, is not allowed.
 * See "OceanProject\License.md" for full licensing details.
 * =================================================*/
 
-#include "OceanPluginPrivatePCH.h"
 #include "BuoyantMesh/BuoyantMeshComponent.h"
-
-#include "PhysicsEngine/BodySetup.h"
-#include "PhysXPublic.h"
-
 #include "OceanManager.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "BuoyantMesh/BuoyantMeshTriangle.h"
 #include "BuoyantMesh/BuoyantMeshSubtriangle.h"
 #include "BuoyantMesh/WaterHeightmapComponent.h"
+#include "Engine/World.h"
+#include "DrawDebugHelpers.h"
+#include "EngineUtils.h"
+#include "PhysXPublic.h"
+
 
 using FForce = UBuoyantMeshComponent::FForce;
 
@@ -191,7 +192,7 @@ void UBuoyantMeshComponent::TickComponent(float DeltaTime,
 
 void UBuoyantMeshComponent::ApplyMeshForces()
 {
-	auto World = GetWorld();
+	auto debugWorld = GetWorld();
 
 	const auto LocalToWorld = GetComponentTransform();
 
@@ -213,18 +214,18 @@ void UBuoyantMeshComponent::ApplyMeshForces()
 
 			if (bDrawTriangles)
 			{
-				DrawDebugTriangle(World, A.Position, B.Position, C.Position, FColor::White, 4.f);
+				DrawDebugTriangle(debugWorld, A.Position, B.Position, C.Position, FColor::White, 4.f);
 			}
 
 			const auto Triangle = FBuoyantMeshTriangle::FromClockwiseVertices(A, B, C);
 
-			const auto SubTriangles = Triangle.GetSubmergedPortion(World, bDrawWaterline);
+			const auto SubTriangles = Triangle.GetSubmergedPortion(debugWorld, bDrawWaterline);
 
 			for (const auto& SubTriangle : SubTriangles)
 			{
 				if (bDrawSubtriangles)
 				{
-					DrawDebugTriangle(World, SubTriangle.A, SubTriangle.B, SubTriangle.C, FColor::Yellow, 6.f);
+					DrawDebugTriangle(debugWorld, SubTriangle.A, SubTriangle.B, SubTriangle.C, FColor::Yellow, 6.f);
 				}
 
 				const auto SubtriangleForce = GetSubmergedTriangleForce(SubTriangle, Triangle.Normal);
